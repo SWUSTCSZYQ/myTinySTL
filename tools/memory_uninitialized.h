@@ -6,6 +6,7 @@
 #define MYTINYSTL_MEMORY_UNINITIALIZED_H
 
 #include <cstring>
+#include <algorithm>
 #include "../iterator/iterator.h"
 #include "../iterator/type_traits.h"
 #include "../allocator/construct.h"
@@ -21,7 +22,7 @@
 template<typename ForwardIterator, typename Size, class T>
 inline ForwardIterator
 __uninitialized_fill_n_aux(ForwardIterator first, Size n, const T& x, __true_type){
-    return fill_n(first, n, x);
+    return std::fill_n(first, n, x);
 }
 
 template<typename ForwardIterator, typename Size, class T>
@@ -37,6 +38,7 @@ __uninitialized_fill_n_aux(ForwardIterator first, Size n, const T& x, __false_ty
 template<typename ForwardIterator, typename Size, typename T, typename  T1>
 inline ForwardIterator __uninitialized_fill_n(ForwardIterator first, Size n, const T& x, T1*){
     typedef typename __type_traits<T1>::is_POD_type is_POD_type;
+    return __uninitialized_fill_n_aux(first, n, x, is_POD_type());
 }
 
 template<typename ForwardIterator, typename Size, typename T>
@@ -51,7 +53,7 @@ inline ForwardIterator uninitialized_fill_n(ForwardIterator first, Size n, const
 template<typename InputIterator, typename ForwardIterator>
 inline ForwardIterator
 __uninitialized_copy_aux(InputIterator first, InputIterator last, ForwardIterator result, __true_type){
-    return copy(first, last, result);
+    return std::copy(first, last, result);
 }
 
 

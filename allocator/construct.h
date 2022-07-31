@@ -21,11 +21,7 @@ inline void destroy(T* pointer){
 }
 
 
-template <typename Ty, typename... Args>
-void construct(Ty* ptr, Args&&... args)
-{
-    ::new ((void*)ptr) Ty(forward<Args>(args)...);
-}
+
 
 inline void destroy(char*, char*){}
 inline void destroy(wchar_t*, wchar_t*){}
