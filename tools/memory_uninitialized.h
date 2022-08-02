@@ -107,7 +107,8 @@ void __uninitialized_fill_aux(ForwardIterator first, ForwardIterator last, const
 }
 template<typename ForwardIterator, typename T>
 void __uninitialized_fill_aux(ForwardIterator first, ForwardIterator last, const T& x, __true_type){
-    fill(first, last, x);
+    std::fill(first, last, x);
+
 }
 
 template<typename ForwardIterator, typename T, typename T1>
@@ -118,7 +119,7 @@ inline void __uninitialized_fill(ForwardIterator first, ForwardIterator last, co
 
 template<typename ForwardIterator, typename T>
 inline void uninitialized_fill(ForwardIterator first, ForwardIterator last, const T& x){
-    __uninitialized_fill(first, last, value_type(first));
+    __uninitialized_fill(first, last, x, value_type(first));
 }
 
 
