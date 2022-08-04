@@ -13,12 +13,13 @@ template<typename T, typename Alloc = allocator<T>>
 class vector {
 public:
     ///嵌套型别定义
-    typedef T           value_type;
-    typedef value_type* pointer;
-    typedef value_type* iterator;
-    typedef value_type& reference;
-    typedef size_t      size_type;
-    typedef ptrdiff_t   difference_type;
+    typedef T                   value_type;
+    typedef value_type*         pointer;
+    typedef value_type*         iterator;
+    typedef value_type&         reference;
+    typedef const value_type&   const_reference;
+    typedef size_t              size_type;
+    typedef ptrdiff_t           difference_type;
 
 protected:
     ///空间配置器
@@ -40,25 +41,22 @@ protected:
     }
 
 public:
-    iterator begin()  {return start;}
-    iterator end()  {return finish;}
-    size_type size() { return size_type (end() - begin());}
-    size_type capacity() const{
-        return size_type (end_of_storage - begin());
-    }
-    bool empty(){
-        return begin() == end();
-    }
-    reference operator[](size_type n){
-        return *(begin() + n);
-    }
+    ///构造函数
     vector():start(nullptr), finish(nullptr), end_of_storage(nullptr){}
+    vector(size_type n, const T& value){
+        fill_initialize(n, value);
+    }
+    /*
     vector(int n, const T& value){
         fill_initialize(n, value);
     }
     vector(long n, const T& value){
         fill_initialize(n, value);
     }
+    vector(long long n, const T& value){
+        fill_initialize(n, value);
+    }
+     */
     explicit vector(size_type n){
         fill_initialize(n, T());
     }
@@ -67,20 +65,26 @@ public:
         uninitialized_copy(others.begin(), others.end(), start);
     }
     vector(vector &&other) noexcept
-    :start(other.start),
-    finish(other.finish),
-    end_of_storage(other.end_of_storage)
+            :start(other.start),
+             finish(other.finish),
+             end_of_storage(other.end_of_storage)
     {
         other.start = nullptr;
         other.finish = nullptr;
         other.end_of_storage = nullptr;
     }
     vector(std::initializer_list<value_type> list)
-    :vector(list.size())
+            :vector(list.size())
     {
         uninitialized_copy(list.begin(), list.end(), start);
     }
 
+    ~vector(){
+        destroy(start, finish);
+        deallocate();
+    }
+
+    ///操作符重载
     vector& operator=(const vector& others);
     vector& operator=(const vector&& others);
 
@@ -97,16 +101,39 @@ public:
         return true;
     }
 
-    void swap(vector& other){
-        swap(start, other.start);
-        swap(finish, other.finish);
-        swap(end_of_storage, other.end_of_storage);
+public:
+    ///调用接口
+    iterator begin()  {return start;}
+    iterator end()  {return finish;}
+    size_type size() { return size_type (end() - begin());}
+    size_type capacity() {
+        return size_type (end_of_storage - begin());
+    }
+    bool empty(){
+        return begin() == end();
+    }
+    reference operator[](size_type n){
+        return *(begin() + n);
     }
 
-    ~vector(){
-        destroy(start, finish);
-        deallocate();
+    void swap(vector& other){
+        //std::swap(start, other.start);
+        //std::swap(finish, other.finish);
+        //std::swap(end_of_storage, other.end_of_storage);
+        iterator new_start = other.start;
+        iterator new_finish = other.finish;
+        iterator new_end_of_storage = other.end_of_storage;
+
+        other.start = start;
+        other.finish = finish;
+        other.end_of_storage = end_of_storage;
+
+        start = new_start;
+        finish = new_finish;
+        end_of_storage = new_end_of_storage;
     }
+
+
 
     reference front(){
         return *begin();
@@ -154,6 +181,20 @@ public:
 
     void resize(size_type new_size){
         resize(new_size, T());
+    }
+
+    void reserve(size_type new_size){
+        //reserve(new_size, T());
+        if(capacity() == new_size)return;
+        new_size = std::max(new_size, capacity());
+        iterator new_start = allocate_and_fill(new_size, T());
+        iterator new_finish = new_start + size();
+        iterator new_end_of_storage = new_start + new_size;
+        uninitialized_copy(start, finish, new_start);
+        deallocate();
+        start = new_start;
+        finish = new_finish;
+        end_of_storage = new_end_of_storage;
     }
 
     void insert(pointer position, size_type n, T x);
