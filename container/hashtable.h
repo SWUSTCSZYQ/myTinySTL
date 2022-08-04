@@ -8,6 +8,7 @@
 #include "../allocator/allocator.h"
 #include "../iterator/iterator.h"
 #include "../container/vector.h"
+#include <iostream>
 
 template<typename Value, typename Key, typename HashFunc,
         typename ExtractKey, typename EqualKey, typename Alloc = allocator<Value>>
@@ -83,7 +84,7 @@ typename hashtable_iterator<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::
     const node* old = cur;
     cur = cur->next;
     if(!cur){
-        size_type bucket = ht->bkt_num(old->val);
+        size_type bucket = ht->btk_num(old->val);
         while(!cur and ++bucket < ht->buckets.size()){
             cur = ht->buckets[bucket];
         }
@@ -138,7 +139,7 @@ class hashtable{
          * Value:节点的实际值类型
          * Key:节点的键值类型
          * HashFunc:哈希函数
-         * ExtractKey:从节点中提取键值得方法
+         * ExtractKey:从节点中提取键值的方法
          * EqualKey:判断键值是否相同
          * Alloc:空间配置
          * */
@@ -159,12 +160,12 @@ public:
     typedef size_t          size_type;
     typedef ptrdiff_t       difference_type;
     typedef Key             key_type;
-
+friend hashtable_iterator<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>;
 
 private:
     hasher      hash;
     key_equal   equals;
-    EqualKey    get_key;
+    ExtractKey  get_key;
 
     ///以vector作为底层容器
     vector<node*>   buckets;
@@ -180,7 +181,7 @@ public:
 
 public:
     ///调用接口
-    size_type bucket_count() const{
+    size_type bucket_count(){
         return buckets.size();
     }
 
@@ -199,12 +200,41 @@ public:
 
     iterator find(const key_type& key);
     size_type count(const key_type& key);
+    size_type size(){
+        return num_elements;
+    }
 
-private:
-    unsigned long long max_bucket_count() const{
+    unsigned long long max_bucket_count(){
         return stl_prime_list[stl_num_primes - 1];
     }
 
+    iterator begin(){
+        return m_begin();
+    }
+    iterator end(){
+        return m_end();
+    }
+
+    size_type elems_in_bucket(const value_type& obj);
+private:
+    ///供迭代器使用
+    ///判断元素的落脚处
+    size_type btk_num(const value_type& obj, size_t n){
+        return btk_num_key(get_key(obj), n);
+    }
+    size_type btk_num(const value_type& obj){
+        return btk_num_key(get_key(obj));
+    }
+
+    size_type btk_num_key(const key_type& key){
+        return btk_num_key(key, buckets.size());
+    }
+    size_type btk_num_key(const key_type& key, size_t n){
+        return hash(key) % n;
+    }
+private:
+    iterator m_end();
+    iterator m_begin();
     void initialize_buckets(size_type n);
     size_type next_size(size_type n)const{
         return stl_next_prime(n);
@@ -221,20 +251,6 @@ private:
     iterator insert_equal_no_resize(const value_type& obj);
 
 
-    ///判断元素的落脚处
-    size_type btk_num(const value_type& obj, size_t n)const{
-        return btk_num_key(get_key(obj), n);
-    }
-    size_type btk_num(const value_type& obj)const{
-        return btk_num_key(get_key(obj));
-    }
-
-    size_type btk_num_key(const key_type& key)const{
-        return btk_num_key(key, buckets.size());
-    }
-    size_type btk_num_key(const key_type& key, size_t n) const{
-        return hash(key) % n;
-    }
 };
 
 
@@ -273,7 +289,7 @@ void hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::resize(hashta
             for(size_type bucket = 0; bucket < old_n; ++bucket){
                 node* first = buckets[bucket];
                 while(first){
-                    size_type new_bucket = bkt_num(first->val, n);
+                    size_type new_bucket = btk_num(first->val, n);
                     ///让旧的指向其所对应的串行的下一个节点
                     ///将当前节点插入到新的buckets中，成为其对应串行的第一个节点
                     ///回到旧的buckets所指的处理串行，准备处理下一个节点
@@ -386,6 +402,36 @@ typename hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::size_type
     for(node* cur = buckets[n]; cur; cur = cur->next)
         if(equals(get_key(cur->val), key))
             ++result;
+    return result;
+}
+
+template<typename Value, typename Key, typename HashFunc, typename ExtractKey, typename EqualKey, typename Alloc>
+typename hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::iterator hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::m_end() {
+    return hashtable::iterator(nullptr, this);
+}
+
+template<typename Value, typename Key, typename HashFunc, typename ExtractKey, typename EqualKey, typename Alloc>
+typename hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::iterator hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::m_begin() {
+    for(size_type n = 0; n < buckets.size(); ++n){
+        if(buckets[n]){
+            return iterator(buckets[n], this);
+        }
+
+    }
+    return iterator(nullptr, this);
+}
+
+template<typename Value, typename Key, typename HashFunc, typename ExtractKey, typename EqualKey, typename Alloc>
+typename hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::size_type
+hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::elems_in_bucket(const value_type &obj) {
+    const size_type n = btk_num_key(obj);
+    size_type result = 0;
+    node* cur = buckets[n];
+    while(cur)
+    {
+        ++result;
+        cur = cur->next;
+    }
     return result;
 }
 
