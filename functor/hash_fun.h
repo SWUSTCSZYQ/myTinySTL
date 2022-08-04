@@ -5,7 +5,7 @@
 #include <cstddef>
 
 #ifndef MYTINYSTL_HASH_FUN_H
-#define
+#define MYTINYSTL_HASH_FUN_H
 
 template<typename Key>
 struct hash{};
