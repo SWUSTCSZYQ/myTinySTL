@@ -43,6 +43,8 @@ struct hashtable_iterator: public iterator<forward_iterator_tag, Value>{
     typedef size_t                  size_type;
     typedef Value*                  pointer;
     typedef Value&                  reference;
+    typedef const Value*            const_pointer;
+    typedef const Value&            const_reference;
 
     node* cur;          ///迭代器目前所指向的节点
     hashtable* ht;      ///保持对迭代器的连接
@@ -179,7 +181,21 @@ public:
         initialize_buckets(n);
     }
 
+    bool operator==(const hashtable& others){
+        return buckets == others.buckets;
+    }
+    bool operator!=(const hashtable& others){
+        return buckets != others.buckets;
+    }
 public:
+    hasher hash_funct(){
+        return hash;
+    }
+
+    key_equal key_eq(){
+        return equals;
+    }
+
     ///调用接口
     size_type bucket_count(){
         return buckets.size();
@@ -188,6 +204,11 @@ public:
     std::pair<iterator, bool> insert_unique(const value_type& obj){
         resize(num_elements + 1);
         return insert_unique_no_resize(obj);
+    }
+
+    template<typename InputIterator>
+    std::pair<iterator, bool> insert_unique(InputIterator first, InputIterator last){
+
     }
 
     iterator insert_equal(const value_type& obj){
@@ -204,6 +225,14 @@ public:
         return num_elements;
     }
 
+    size_type erase(const key_type& key);
+    void erase(iterator iter);
+    void erase(iterator first, iterator last);
+
+    size_type max_size(){
+        return buckets.size();
+    }
+
     unsigned long long max_bucket_count(){
         return stl_prime_list[stl_num_primes - 1];
     }
@@ -211,11 +240,21 @@ public:
     iterator begin(){
         return m_begin();
     }
+
     iterator end(){
         return m_end();
     }
 
-    size_type elems_in_bucket(const value_type& obj);
+    bool empty(){
+        return size() == 0;
+    }
+
+    void swap(hashtable& ht){
+        buckets.swap(ht.buckets);
+    }
+
+    size_type elems_in_bucket(const size_type& obj);
+
 private:
     ///供迭代器使用
     ///判断元素的落脚处
@@ -232,6 +271,9 @@ private:
     size_type btk_num_key(const key_type& key, size_t n){
         return hash(key) % n;
     }
+
+    ///判断是否需要扩充
+    void resize(size_type num_elements_hint);
 private:
     iterator m_end();
     iterator m_begin();
@@ -242,14 +284,10 @@ private:
 
     node* new_node(const value_type& obj);
     void delete_node(node*);
-
-    ///判断是否需要扩充
-    void resize(size_type num_elements_hint);
     ///不允许键值重复
     std::pair<iterator, bool> insert_unique_no_resize(const value_type& obj);
     ///允许键值重复
     iterator insert_equal_no_resize(const value_type& obj);
-
 
 };
 
@@ -423,16 +461,53 @@ typename hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::iterator 
 
 template<typename Value, typename Key, typename HashFunc, typename ExtractKey, typename EqualKey, typename Alloc>
 typename hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::size_type
-hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::elems_in_bucket(const value_type &obj) {
-    const size_type n = btk_num_key(obj);
+hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::elems_in_bucket(const size_type &obj) {
     size_type result = 0;
-    node* cur = buckets[n];
+    node* cur = buckets[obj];
     while(cur)
     {
         ++result;
         cur = cur->next;
     }
     return result;
+}
+
+template<typename Value, typename Key, typename HashFunc, typename ExtractKey, typename EqualKey, typename Alloc>
+typename hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::size_type hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::erase(const key_type &key) {
+    const size_type n = btk_num_key(key);
+    node* cur = buckets[n];
+    size_type count = 0;
+    while(cur and equals(get_key(cur->val), key)){
+        ++count;
+        cur = cur->next;
+    }
+    buckets[n] = cur;
+    while(cur and cur->next)
+    {
+        ///此时 !equals(get_key(cur->val), key)
+        node* next = cur->next;
+        if(equals(get_key(next->val), key))
+        {
+            cur->next = next->next;
+            delete_node(next);
+            ++count;
+        }
+        else{
+            cur = cur->next;
+        }
+    }
+    return count;
+}
+
+template<typename Value, typename Key, typename HashFunc, typename ExtractKey, typename EqualKey, typename Alloc>
+void hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::erase(hashtable::iterator iter) {
+
+}
+
+template<typename Value, typename Key, typename HashFunc, typename ExtractKey, typename EqualKey, typename Alloc>
+void hashtable<Value, Key, HashFunc, ExtractKey, EqualKey, Alloc>::erase(hashtable::iterator first,
+                                                                         hashtable::iterator last) {
+
 }
 
 
