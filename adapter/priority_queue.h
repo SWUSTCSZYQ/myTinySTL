@@ -103,7 +103,7 @@ public:
 
 public:
     priority_queue():c(){}
-    explicit priority_queue(const Compare& x):c(), comp(x){}
+    priority_queue(const Compare& x):c(), comp(x){}
 
     template<class InputIterator>
     priority_queue(InputIterator first, InputIterator last, const Compare& x)
@@ -117,25 +117,25 @@ public:
         make_heap(c.begin(), c.end());
     }
 
-    bool empty() const{
+    bool empty() {
         return c.empty();
     }
 
-    size_type size() const{
+    size_type size() {
         return c.size();
     }
 
-    const_reference top() const{
+    const_reference top() {
         return c.front();
     }
 
     void push(const T& x){
-        x.push_back(x);
-        push_heap(c.begin, c.end, comp);
+        c.push_back(x);
+        push_heap(c.begin(), c.end(), comp);
     }
 
     void pop(){
-        pop_heap(c.begin, c.end(), comp);
+        pop_heap(c.begin(), c.end(), comp);
         c.pop_back();
     }
 
