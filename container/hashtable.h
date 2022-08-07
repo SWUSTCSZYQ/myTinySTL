@@ -255,6 +255,14 @@ public:
 
     size_type elems_in_bucket(const size_type& obj);
 
+    value_type find_or_insert(const value_type& obj){
+        key_type key = get_key(obj);
+        if(!count(key)){
+            insert_unique(obj);
+        }
+        return obj;
+    }
+
 private:
     ///供迭代器使用
     ///判断元素的落脚处

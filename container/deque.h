@@ -185,8 +185,10 @@ public:
     typedef T               value_type;
     typedef value_type*     pointer;
     typedef T&              reference;
+    typedef const T&        const_reference;
     typedef size_t          size_type;
     typedef ptrdiff_t       difference_type;
+
 
     typedef deque_iterator<T, T&, T*, BufSiz>   iterator;
 
