@@ -159,6 +159,94 @@ struct rb_tree_iterator:public rb_tree_base_iterator{
 
 };
 
+
+void __rb_tree_rotate_right(rb_tree_node_base *pBase, rb_tree_node_base *&pBase1);
+
+void __rb_tree_rotate_left(rb_tree_node_base *pBase, rb_tree_node_base *&pBase1);
+
+///每次插入后调整二叉树，使其符合rb_tree
+inline void __rb_tree_rebalance(rb_tree_node_base* x, rb_tree_node_base*& root){
+    x->color = rb_tree_red; ///新节点为红色
+    while(x != root and x->parent->color == rb_tree_red){
+        ///父节点为红色
+        if(x->parent == x->parent->parent->left){
+            rb_tree_node_base* y = x->parent->parent->right;
+            if(y and y->color == rb_tree_red){
+                x->parent->color = rb_tree_black;
+                x->parent->parent->color = rb_tree_red;
+                x = x->parent->parent;
+            }
+            else{
+                if(x == x->parent->right){
+                    x = x->parent;
+                    __rb_tree_rotate_left(x, root);
+                }
+                x->parent->color = rb_tree_black;
+                x->parent->parent->color = rb_tree_red;
+                __rb_tree_rotate_right(x->parent->parent, root);
+            }
+        }
+        ///父节点为祖父节点的右节点
+        else{
+            rb_tree_node_base* y = x->parent->parent->left;
+            if(y and !y->color == rb_tree_red){
+                x->parent->color = rb_tree_black;
+                x->color =rb_tree_black;
+                x->parent->parent->color = rb_tree_red;
+                x = x->parent->parent;
+            }
+            else{
+                x = x->parent;
+                __rb_tree_rotate_right(x, root);
+            }
+            x->parent->color = rb_tree_black;
+            x->parent->parent->color = rb_tree_red;
+            __rb_tree_rotate_left(x->parent->parent, root);
+        }
+    }
+    ///根节点永远是黑色
+    root->color = rb_tree_black;
+}
+
+void __rb_tree_rotate_left(rb_tree_node_base *x, rb_tree_node_base *&root) {
+    ///x为旋转节点
+    rb_tree_node_base* y = x->right;
+    x->right = x->left;
+    if(x->left){
+        x->left->parent = x;
+    }
+    y->left->parent = x;
+
+    ///让y顶替x的地位
+    if(x == root)
+        root = y;
+    else if(x == x->parent->left)
+        x->parent->left = y;
+    else
+        x->parent->right = y;
+
+    x->parent = y;
+}
+
+void __rb_tree_rotate_right(rb_tree_node_base *x, rb_tree_node_base *&root) {
+    rb_tree_node_base* y = x->left;
+    x->left = y->right;
+    if(y->right != 0)
+        y->right->parent = x;
+    y->parent = x->parent;
+
+    if(x == root)
+        root = y;
+    else if(x == x->parent->right)
+        x->parent->right = y;
+    else
+        x->parent->left = y;
+
+    y->right = x;
+    x->parent = y;
+}
+
+
 template<typename Key, typename Value, typename KeyOfValue, typename Compare, typename Alloc = allocator<Key>>
 class rb_tree{
 private:
@@ -221,6 +309,9 @@ public:
         return size_type(-1);
     }
 
+
+    iterator insert_equal(const Value& v);
+    std::pair<iterator, bool> insert_unique(const Value& v);
 private:
     ///接口的实际实现函数
     iterator __insert(base_ptr x, base_ptr y, const value_type& v);
@@ -233,6 +324,8 @@ private:
         leftMost() = header;
         rightMost() = header;
     }
+
+
 
 private:
     link_type get_node(){
@@ -308,5 +401,67 @@ private:
     link_type   header;
     Compare     key_compare;///键值比较
 };
+
+template<typename Key, typename Value, typename KeyOfValue, typename Compare, typename Alloc>
+std::pair<typename rb_tree<Key, Value, KeyOfValue, Compare, Alloc>::iterator, bool> rb_tree<Key, Value, KeyOfValue, Compare, Alloc>::insert_unique(const Value& v) {
+    link_type x = root(), y = header;
+    bool comp = true;
+    while(x != 0){
+        y = x;
+        comp = key_compare(KeyOfValue()(v), Key(x));
+        x = comp ? left(x) : right(x);
+    }
+
+    ///y所指即为插入点的父节点
+    iterator j = iterator(y);
+    if(comp){
+        if(j == begin()){
+            return std::pair<iterator, bool>(__insert(x, y, v), true);
+        }
+        else{
+            --j;
+        }
+    }
+    if(key_compare(key(j.node), KeyOfValue()(v)))
+        return std::pair<iterator, bool>(__insert(x, y, v), true);
+
+    ///新值已经存在，不用插入
+    return std::pair<iterator, bool>(j, false);
+}
+
+template<typename Key, typename Value, typename KeyOfValue, typename Compare, typename Alloc>
+typename rb_tree<Key, Value, KeyOfValue, Compare, Alloc>::iterator rb_tree<Key, Value, KeyOfValue, Compare, Alloc>::insert_equal(const Value& v) {
+    link_type y = header;
+    link_type x = root();
+    while(x != 0){
+        y = x;
+        x = key_compare(KeyOfValue()(v), key(x))? left(x) : right(x);
+    }
+    return __insert(x, y, v);
+}
+
+template<typename Key, typename Value, typename KeyOfValue, typename Compare, typename Alloc>
+typename rb_tree<Key, Value, KeyOfValue, Compare, Alloc>::iterator rb_tree<Key, Value, KeyOfValue, Compare, Alloc>::__insert(rb_tree::base_ptr x, rb_tree::base_ptr y,
+                                                                            const value_type &v) {
+    link_type _x = (link_type)x, _y = (link_type)y, _z;
+    if(_y == header or _x != 0 or key_compare(KeyOfValue()(v), key(_y))){
+        _z = create_node(v);
+        left(_y) = _z;
+        if(_y == header){
+            root() = _z;
+            rightMost() = _z;
+        }
+        else if(_y == leftMost()){
+            leftMost() = _z;
+        }
+        parent(_z) = _y;
+        left(_z) = 0;
+        right(_z) = 0;
+
+        __rb_tree_rebalance(_z, header->parent);
+        ++node_count;
+        return iterator(_z);
+    }
+}
 
 #endif //MYTINYSTL_RBTREE_H
