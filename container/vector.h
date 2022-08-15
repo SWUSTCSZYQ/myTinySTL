@@ -15,7 +15,9 @@ public:
     ///嵌套型别定义
     typedef T                   value_type;
     typedef value_type*         pointer;
+    typedef const value_type*   const_pointer;
     typedef value_type*         iterator;
+    typedef const value_type*   const_iterator;
     typedef value_type&         reference;
     typedef const value_type&   const_reference;
     typedef size_t              size_type;
@@ -46,7 +48,6 @@ public:
     vector(size_type n, const T& value){
         fill_initialize(n, value);
     }
-    /*
     vector(int n, const T& value){
         fill_initialize(n, value);
     }
@@ -56,7 +57,6 @@ public:
     vector(long long n, const T& value){
         fill_initialize(n, value);
     }
-     */
     explicit vector(size_type n){
         fill_initialize(n, T());
     }
@@ -95,6 +95,19 @@ public:
         while(cur != finish)
         {
             if(*iter != *cur)return false;
+            ++cur;
+            ++iter;
+        }
+        return true;
+    }
+
+    bool operator!=(vector& other){
+        if(other.size() != size())return false;
+        auto iter = other.start;
+        auto cur = start;
+        while(cur != finish)
+        {
+            if(*iter == *cur)return false;
             ++cur;
             ++iter;
         }
@@ -151,6 +164,23 @@ public:
         else insert_aux(end(), x);
     }
 
+    void push_back(const T& x){
+        if(finish != end_of_storage){
+            construct(finish, x);
+            ++finish;
+        }
+        else insert_aux(end(), x);
+    }
+
+    template<typename V>
+    void emplace_back(V& value){
+        if(finish != end_of_storage){
+            construct(finish, T(value));
+            ++finish;
+        }
+        else insert_aux(end(), T(value));
+    }
+
     void pop_back(){
         --finish;
         destroy(finish);
@@ -164,7 +194,25 @@ public:
         destroy(finish);
         return position;
     }
+
+    iterator erase(const_iterator position){
+        if(position + 1 != end()){
+            std::copy(position + 1, finish, position); ///将position + 1 到finish的值拷贝到从finish开始的位置
+        }
+        --finish;
+        destroy(finish);
+        return position;
+    }
+
     iterator erase(iterator first, iterator last)
+    {
+        iterator i = std::copy(last, finish, first);
+        destroy(i, finish);
+        finish -= last - first;
+        return first;
+    }
+
+    iterator erase(const_iterator first, const_iterator last)
     {
         iterator i = std::copy(last, finish, first);
         destroy(i, finish);
@@ -183,6 +231,10 @@ public:
         resize(new_size, T());
     }
 
+    void resize(const size_type& new_size){
+        resize(new_size, T());
+    }
+
     void reserve(size_type new_size){
         //reserve(new_size, T());
         if(capacity() == new_size)return;
@@ -198,12 +250,13 @@ public:
     }
 
     void insert(pointer position, size_type n, T x);
+    void insert(pointer position, T x){
+        insert(position, 1, x);
+    }
 
     void clear(){
         erase(begin(), end());
     }
-
-
 
 protected:
     iterator allocate_and_fill(size_type n, const T& x){
@@ -212,7 +265,6 @@ protected:
         return result;
     }
 };
-
 
 template<typename T, typename Alloc>
 void vector<T, Alloc>::insert_aux(vector::iterator position, T x) {
